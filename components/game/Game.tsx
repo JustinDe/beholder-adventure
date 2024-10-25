@@ -9,6 +9,7 @@ import { GameUI } from './GameUI'
 import { AimGuide } from './AimGuide'
 import { TurnIndicator } from './TurnIndicator'
 import { motion, AnimatePresence } from 'framer-motion'
+import { GameState } from '@/types/game'
 
 // ... (previous type definitions remain unchanged)
 
@@ -50,8 +51,6 @@ export default function Game() {
       fireBullets(x, y)
     }
   }, [gameState.isPlayerTurn, fireBullets])
-
-  // ... (rest of the component remains unchanged)
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 text-white">
@@ -123,4 +122,8 @@ export default function Game() {
       )}
     </div>
   )
+}
+
+function fireBullets(x: number, y: number) {
+  // ... (implementation remains unchanged)
 }
