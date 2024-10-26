@@ -7,7 +7,7 @@ type GameUIProps = {
   score: number
 }
 
-export function GameUI({ hp, mp, sp }: GameUIProps) {
+export function GameUI({ hp, mp, sp, score }: GameUIProps) {
   const actions = [
     { icon: '🔥', cost: 30 },
     { icon: '💥', cost: 40 },
