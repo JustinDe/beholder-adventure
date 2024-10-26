@@ -4,6 +4,7 @@ type GameUIProps = {
   hp: number
   mp: number
   sp: number
+  score: number
 }
 
 export function GameUI({ hp, mp, sp }: GameUIProps) {
