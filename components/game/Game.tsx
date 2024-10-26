@@ -56,7 +56,7 @@ export default function Game() {
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 text-white">
       <div className="relative w-[800px] bg-[#1a1a2e] rounded-lg overflow-hidden">
         <div className="flex justify-between items-center px-4 py-2 bg-[#16213e]">
-          <h1 className="text-2xl font-bold text-[#e94560]">Kupo Kupo Adventure</h1>
+          <h1 className="text-2xl font-bold text-[#e94560]">Beholder Adventure</h1>
           <div className="text-2xl font-bold text-[#0f3460]">{gameState.score.toString().padStart(5, '0')}</div>
         </div>
         <div 
