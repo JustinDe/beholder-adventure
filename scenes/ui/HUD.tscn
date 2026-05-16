@@ -1,0 +1,60 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scenes/ui/HUD.gd" id="1_hud"]
+[ext_resource type="PackedScene" path="res://scenes/ui/ActionCards.tscn" id="2_cards"]
+
+[node name="HUD" type="CanvasLayer"]
+script = ExtResource("1_hud")
+
+[node name="TopBar" type="HBoxContainer" parent="."]
+offset_left = 20.0
+offset_top = 20.0
+offset_right = 900.0
+offset_bottom = 56.0
+theme_override_constants/separation = 18
+
+[node name="ScoreLabel" type="Label" parent="TopBar"]
+custom_minimum_size = Vector2(140, 32)
+text = "Score 0"
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 22
+
+[node name="HPLabel" type="Label" parent="TopBar"]
+custom_minimum_size = Vector2(96, 32)
+text = "HP 100"
+theme_override_colors/font_color = Color(1, 0.38, 0.35, 1)
+theme_override_font_sizes/font_size = 22
+
+[node name="MPLabel" type="Label" parent="TopBar"]
+custom_minimum_size = Vector2(96, 32)
+text = "MP 100"
+theme_override_colors/font_color = Color(0.35, 0.72, 1, 1)
+theme_override_font_sizes/font_size = 22
+
+[node name="BPLabel" type="Label" parent="TopBar"]
+custom_minimum_size = Vector2(80, 32)
+text = "BP 1"
+theme_override_colors/font_color = Color(1, 0.86, 0.35, 1)
+theme_override_font_sizes/font_size = 22
+
+[node name="ComboLabel" type="Label" parent="TopBar"]
+custom_minimum_size = Vector2(128, 32)
+text = "Combo x0"
+theme_override_colors/font_color = Color(0.72, 1, 0.62, 1)
+theme_override_font_sizes/font_size = 22
+
+[node name="MessageLabel" type="Label" parent="."]
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -180.0
+offset_top = 72.0
+offset_right = 180.0
+offset_bottom = 108.0
+grow_horizontal = 2
+horizontal_alignment = 1
+text = "Drag from the ball to aim"
+theme_override_colors/font_color = Color(1, 1, 1, 0.88)
+theme_override_font_sizes/font_size = 22
+
+[node name="CardSelector" parent="." instance=ExtResource("2_cards")]

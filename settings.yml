@@ -1,0 +1,71 @@
+use_default_settings: true
+
+general:
+  instance_name: "SearXNG (OpenClaw Local)"
+
+server:
+  port: 8080
+  bind_address: "0.0.0.0"
+  secret_key: "CHANGE_THIS_TO_RANDOM_STRING"
+  public_instance: false
+
+search:
+  safe_search: 0
+  autocomplete: ""
+  max_requests: 1
+
+ui:
+  static_use_hash: true
+
+# 🔴 Disable bot detection (important for OpenClaw)
+botdetection:
+  enabled: false
+
+# 🌐 Outgoing request behavior
+outgoing:
+  request_timeout: 10.0
+  max_request_timeout: 15.0
+
+  # ✅ Real browser User-Agent (critical)
+  useragent: >
+    Mozilla/5.0 (Windows NT 10.0; Win64; x64)
+    AppleWebKit/537.36 (KHTML, like Gecko)
+    Chrome/120.0.0.0 Safari/537.36
+
+  # 🧅 OPTIONAL: enable Tor (RECOMMENDED for stability)
+  # Uncomment if you add a tor container
+  # proxies:
+  #   http: socks5h://tor:9050
+  #   https: socks5h://tor:9050
+
+# 🔎 ONLY reliable engines (minimized to avoid 403s)
+engines:
+
+  - name: duckduckgo
+    engine: duckduckgo
+    shortcut: ddg
+    disabled: false
+
+  - name: duckduckgo_html
+    engine: duckduckgo_html
+    shortcut: ddgh
+    disabled: false
+
+  # ❌ Disable fragile / blocked engines
+  - name: google
+    disabled: true
+
+  - name: bing
+    disabled: true
+
+  - name: startpage
+    disabled: true
+
+  - name: wikidata
+    disabled: true
+
+  - name: qwant
+    disabled: true
+
+  - name: brave
+    disabled: true
