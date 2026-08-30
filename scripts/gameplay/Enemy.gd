@@ -15,6 +15,7 @@ var score_value: int = 100
 var collision_radius: float = 26.0
 var moves: bool = false
 var movement_time: float = 0.0
+var attack_damage: int = 1
 
 @onready var body: Polygon2D = $Body
 @onready var hp_label: Label = $HPLabel
@@ -36,6 +37,18 @@ func apply_type(new_type: String) -> void:
 	collision_radius = data.get("radius", 26.0)
 	_update_collision_shape()
 	_update_body(data.get("body_color", Color.WHITE))
+	_update_label()
+
+
+func apply_phase_difficulty(phase: int) -> void:
+	var bonus: int = maxi(0, phase - 1)
+	if bonus <= 0:
+		attack_damage = 1
+		return
+	max_hp += bonus
+	hp += bonus
+	score_value += bonus * 40
+	attack_damage = 1 + int(floor(float(bonus) / 2.0))
 	_update_label()
 
 

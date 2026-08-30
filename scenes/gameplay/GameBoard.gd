@@ -3,6 +3,7 @@ class_name GameBoard
 
 signal level_cleared(level_id: String)
 signal status_changed(message: String)
+signal phase_started(phase: int)
 
 const BallScene := preload("res://scenes/gameplay/Ball.tscn")
 const EnemyScene := preload("res://scenes/gameplay/Enemy.tscn")
@@ -15,6 +16,7 @@ const ComboSystemScript := preload("res://scripts/gameplay/ComboSystem.gd")
 @export var cell_size: Vector2 = Vector2(96, 80)
 @export var board_origin: Vector2 = Vector2(480, 190)
 @export var trajectory_extra_square_widths: float = 4.0
+@export var ball_timeout_seconds: float = 12.0
 
 var level_manager: Node
 var combo_system: Node
@@ -28,6 +30,8 @@ var obstacle_rects: Array[Rect2] = []
 var is_launching: bool = false
 var aim_direction: Vector2 = Vector2.UP
 var level_is_cleared: bool = false
+var enemy_turn_resolving: bool = false
+var launch_sequence_id: int = 0
 
 @onready var grid_layer: Node2D = $GridLayer
 @onready var obstacle_layer: Node2D = $ObstacleLayer
@@ -50,11 +54,15 @@ func _ready() -> void:
 	InputHandler.aim_updated.connect(_on_aim_updated)
 	InputHandler.aim_ended.connect(_on_aim_ended)
 	InputHandler.action_cancelled.connect(_on_action_cancelled)
+	InputHandler.restart_round_requested.connect(_on_restart_round_requested)
+	GameState.phase_changed.connect(_on_phase_changed)
 	_update_player_body()
 	load_level(level_id)
 
 
 func _input(event: InputEvent) -> void:
+	if not _is_players_turn():
+		return
 	if event is InputEventMouseButton and event.pressed:
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
 			_move_player(-1)
@@ -88,13 +96,11 @@ func load_level(new_level_id: String) -> void:
 	_update_player_position()
 	trajectory_preview.clear_path()
 	status_changed.emit("Mouse wheel moves launcher. Aim with mouse")
+	phase_started.emit(GameState.current_phase)
 
 
 func get_current_stage() -> int:
-	var parts := level_id.split("_")
-	if parts.size() >= 2:
-		return max(1, int(parts[1]))
-	return 1
+	return GameState.current_phase
 
 
 func cast_spell(spell_id: String) -> void:
@@ -144,6 +150,7 @@ func get_trajectory_distance() -> float:
 
 
 func _clear_board() -> void:
+	launch_sequence_id += 1
 	for layer in [grid_layer, obstacle_layer, resource_layer, enemy_layer, ball_layer]:
 		for child in layer.get_children():
 			child.queue_free()
@@ -168,7 +175,7 @@ func _update_player_position() -> void:
 
 
 func _move_player(row_delta: int) -> void:
-	if active_balls.size() > 0:
+	if not _is_players_turn():
 		return
 	var previous_row := player_row
 	player_row = clampi(player_row + row_delta, 0, grid_size.y - 1)
@@ -235,6 +242,8 @@ func _spawn_enemies(enemy_entries: Array) -> void:
 		enemy.position = cell_to_world(enemy.grid_cell)
 		enemy.defeated.connect(_on_enemy_defeated)
 		enemy_layer.add_child(enemy)
+		if enemy.has_method("apply_phase_difficulty"):
+			enemy.apply_phase_difficulty(GameState.current_phase)
 		enemies.append(enemy)
 
 
@@ -312,6 +321,8 @@ func _damage_enemy(enemy, damage: int) -> void:
 func _launch(direction: Vector2) -> void:
 	if active_balls.size() > 0 or direction.length_squared() == 0.0:
 		return
+	launch_sequence_id += 1
+	var current_launch_id := launch_sequence_id
 	trajectory_preview.clear_path()
 	combo_system.begin_launch()
 	var ball_count: int = max(1, GameState.sp_points)
@@ -320,6 +331,7 @@ func _launch(direction: Vector2) -> void:
 		if i < ball_count - 1:
 			await get_tree().create_timer(0.12).timeout
 	status_changed.emit("Launched %d ball%s" % [ball_count, "" if ball_count == 1 else "s"])
+	_start_ball_timeout(current_launch_id)
 
 
 func _spawn_ball(direction: Vector2) -> void:
@@ -360,39 +372,82 @@ func _on_enemy_defeated(enemy) -> void:
 
 
 func _on_ball_expired(ball) -> void:
-	if not is_instance_valid(ball):
-		return
-	active_balls.erase(ball)
-	ball.queue_free()
-	if active_balls.is_empty():
-		_end_turn("Ready")
+	_despawn_ball(ball, "Ready")
 
 
 func _on_ball_bounced(ball, _position: Vector2) -> void:
-	if _should_player_catch_ball(ball):
-		_remove_ball_from_field(ball, "Ball returned")
+	if _should_despawn_at_player_wall(ball):
+		_despawn_ball(ball, "Ball returned")
 		return
 	_check_obstacle_bounce(ball)
 
 
-func _remove_ball_from_field(ball, message: String) -> void:
+func _despawn_ball(ball, message: String) -> void:
 	if not is_instance_valid(ball):
 		return
 	ball.active = false
 	active_balls.erase(ball)
 	ball.queue_free()
 	if active_balls.is_empty():
-		_end_turn(message)
+		_end_player_turn(message)
 
 
-func _end_turn(message: String) -> void:
+func _despawn_all_balls(message: String) -> void:
+	if active_balls.is_empty():
+		return
+	for ball in active_balls.duplicate():
+		if is_instance_valid(ball):
+			ball.active = false
+			ball.queue_free()
+	active_balls.clear()
+	_end_player_turn(message)
+
+
+func _start_ball_timeout(current_launch_id: int) -> void:
+	await get_tree().create_timer(ball_timeout_seconds).timeout
+	if current_launch_id != launch_sequence_id or active_balls.is_empty():
+		return
+	_despawn_all_balls("Ball timeout")
+
+
+func _end_player_turn(message: String) -> void:
 	combo_system.end_launch()
 	GameState.tick_turn_effects()
 	status_changed.emit(message)
+	var advanced := GameState.complete_side_turn(GameState.TURN_PLAYER)
+	if advanced:
+		return
+	_resolve_enemy_turn()
 
 
-func _should_player_catch_ball(ball) -> bool:
-	if not is_instance_valid(ball) or ball.bounce_count <= 0:
+func _resolve_enemy_turn() -> void:
+	if enemy_turn_resolving or GameState.current_turn_owner != GameState.TURN_ENEMIES:
+		return
+	enemy_turn_resolving = true
+	trajectory_preview.clear_path()
+	await get_tree().create_timer(0.35).timeout
+	var total_damage := 0
+	for enemy in enemies:
+		if is_instance_valid(enemy):
+			total_damage += int(enemy.attack_damage)
+	if total_damage > 0:
+		GameState.take_damage(total_damage, false)
+		status_changed.emit("Enemies attack for %d" % total_damage)
+	else:
+		status_changed.emit("No enemies remain")
+	await get_tree().create_timer(0.25).timeout
+	enemy_turn_resolving = false
+	if GameState.player_hp <= 0:
+		GameState.complete_side_turn(GameState.TURN_ENEMIES)
+		GameState.end_run()
+		return
+	var advanced := GameState.complete_side_turn(GameState.TURN_ENEMIES)
+	if not advanced:
+		status_changed.emit("Player turn")
+
+
+func _should_despawn_at_player_wall(ball) -> bool:
+	if not is_instance_valid(ball):
 		return false
 	var bounds := get_board_bounds()
 	var right_wall_x := bounds.end.x - BallPhysicsScript.BALL_RADIUS
@@ -418,17 +473,11 @@ func _check_obstacle_bounce(ball) -> void:
 
 func _check_level_clear() -> void:
 	if enemies.is_empty():
-		level_is_cleared = true
-		trajectory_preview.clear_path()
-		GameState.complete_level(level_id, 3)
-		status_changed.emit("Level cleared")
-		level_cleared.emit(level_id)
+		status_changed.emit("Enemies cleared")
 
 
 func _on_aim_started(position: Vector2) -> void:
-	if active_balls.size() > 0:
-		return
-	if level_is_cleared:
+	if not _is_players_turn():
 		return
 	is_launching = true
 	aim_direction = _get_mouse_aim_direction()
@@ -451,8 +500,19 @@ func _on_aim_ended(_position: Vector2) -> void:
 
 
 func _on_action_cancelled() -> void:
+	if not _is_players_turn():
+		return
 	is_launching = false
 	status_changed.emit("Aim cancelled")
+
+
+func _on_restart_round_requested() -> void:
+	if not _is_players_turn():
+		return
+	is_launching = false
+	launch_sequence_id += 1
+	load_level(level_id)
+	status_changed.emit("Round restarted")
 
 
 func _update_trajectory(direction: Vector2) -> void:
@@ -477,7 +537,15 @@ func _get_mouse_aim_direction() -> Vector2:
 
 
 func _is_players_turn() -> bool:
-	return active_balls.is_empty() and not level_is_cleared
+	return active_balls.is_empty() and not level_is_cleared and not enemy_turn_resolving and GameState.current_turn_owner == GameState.TURN_PLAYER
+
+
+func _on_phase_changed(phase: int, awarded_gem: bool) -> void:
+	load_level(level_id)
+	var message := "Phase %d" % phase
+	if awarded_gem:
+		message += " - Golden gem earned"
+	status_changed.emit(message)
 
 
 func _array_to_vec2i(value) -> Vector2i:

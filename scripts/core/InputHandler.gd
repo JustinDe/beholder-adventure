@@ -9,6 +9,7 @@ signal aim_ended(position: Vector2)
 signal ball_fired(trajectory: Vector2)
 signal action_cancelled
 signal pause_toggled
+signal restart_round_requested
 
 # Input state
 var is_aiming: bool = false
@@ -125,6 +126,9 @@ func _handle_key(event: InputEventKey) -> void:
 	# Pause toggle
 	if Input.is_action_just_pressed("pause"):
 		pause_toggled.emit()
+
+	if Input.is_action_just_pressed("restart_round"):
+		restart_round_requested.emit()
 
 
 ## Start aiming action
