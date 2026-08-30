@@ -13,8 +13,7 @@ config_version=5
 config/name="Beholder Adventure"
 config/description="A tactical puzzle-action game where players use a bouncing ball to defeat enemies on a grid-based battlefield."
 run/main_scene="res://scenes/main/Main.tscn"
-config/features=PackedStringArray("4.2", "Forward Plus")
-config/icon="res://icon.svg"
+config/features=PackedStringArray("4.2", "GL Compatibility")
 
 [autoload]
 
@@ -81,6 +80,6 @@ touch_aim={
 
 [rendering]
 
-renderer/rendering_method="forward_plus"
-renderer/rendering_method.mobile="mobile"
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
 textures/vram_compression/import_etc2_astc=true

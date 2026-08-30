@@ -5,7 +5,7 @@
 *Language: GDScript (native)*  
 *Art Policy: Human-created ONLY*  
 *Created: 2026-04-13*  
-*Last implementation update: 2026-05-16*
+*Last implementation update: 2026-06-14*
 
 ---
 
@@ -28,11 +28,13 @@ The project now boots into a playable Godot prototype scene instead of the origi
 - [x] Initial enemy type data: `scripts/gameplay/EnemyTypes.gd`
 - [x] Enemy health, damage, defeat, and score values
 - [x] Combo and score tracking: `scripts/gameplay/ComboSystem.gd`
-- [x] Action card resource and default card roster: `scripts/gameplay/ActionCard.gd`
-- [x] Card selection UI and BP cost validation: `scripts/ui/CardSelector.gd`
-- [x] HUD scene for score, HP, MP, BP, combo, and status messages: `scenes/ui/HUD.tscn`
+- [x] Removed bottom-left action toggles from the runtime prototype
+- [x] Added SP resource: collectible board nodes increase future shot count
+- [x] Added MP spell panel in the bottom-left UI with costs, cooldowns, and stage restrictions
+- [x] HUD scene for score, HP, MP, combo, and status messages: `scenes/ui/HUD.tscn`
 - [x] Touch feedback helper script: `scripts/ui/TouchControls.gd`
-- [x] Godot console validation using `C:\Users\Justin\Documents\GDOT\Godot_v4.6.2-stable_win64_console.exe`
+- [x] Godot normal windowed validation using `C:\Users\Justin\Documents\GDOT\Godot_v4.6.2-stable_win64_console.exe`
+- [x] Project renderer set to GL Compatibility for stable local startup and mobile-oriented rendering
 
 ### Current Control Model
 | Action | Current PC Prototype |
@@ -44,14 +46,30 @@ The project now boots into a playable Godot prototype scene instead of the origi
 | Cancel | Right click / Escape |
 | Pause | Escape |
 
+### Current Resource Model
+- **SP:** Shot Points. Starts at 1, increases when a ball collects an SP node, and determines how many balls launch on the next shot.
+- **MP:** Spell resource consumed by Eye spells. Buttons are disabled when MP is insufficient, the spell is on cooldown, or the stage restriction is not met.
+
+### Current Spell Roster
+| Spell | MP | Recast | Availability | Prototype Effect |
+|-------|----|--------|--------------|------------------|
+| Eye Fire | 30 | 3 turns | Stage 1+ | Deals 20 damage to the nearest enemy in front of the player row. |
+| Eye Starstorm | 40 | 4 turns | Stage 1+ | Deals 10 damage to enemies in a 3x3 area centered 8 squares in front of the player. |
+| Eye Meteor | 80 | 10 turns | Stage 3 only | Deals 15 damage to all enemies. |
+| Eye Cure | 10 | 1 turn | Stage 1+ | Restores 50 HP. |
+| Eye Esuna | 20 | 3 turns | Stages 2-3 | Clears detrimental effects except Doom. |
+| Eye Levitation | 20 | 3 turns | Stages 2-3 | Grants 1 turn of floor-effect immunity. |
+| Eye Ward | 30 | 3 turns | Stage 1+ | Grants 1 turn of damage reduction barrier. |
+| Eye Reraise | 50 | 99 turns | Stage 1+ | Grants automatic revival on KO while active. |
+
 ### Known Prototype Limitations
-- [ ] Player, enemies, tiles, cards, and UI still use placeholder geometry/widgets.
+- [ ] Player, enemies, tiles, and UI still use placeholder geometry/widgets.
 - [ ] Trajectory preview currently predicts board-wall bounces, not obstacle bounces.
 - [ ] Obstacle collision is implemented as simple runtime rectangle reflection and should be unified with prediction.
-- [ ] Card effects are partially wired; Time Warp still needs gameplay time-scaling behavior.
 - [ ] Level clear/progression exists, but no level select or next-level flow exists yet.
 - [ ] No human-created art/audio assets have been integrated.
 - [ ] No visual QA screenshot pass has been completed in the editor/browser.
+- [ ] Local Godot `--headless` mode crashes before project startup even without a project path; use windowed validation until the local engine runtime is replaced or repaired.
 
 ---
 
@@ -101,8 +119,8 @@ beholder-adventure/
 │   │   └── TrajectoryPreview.gd # Dotted launcher aim preview
 │   │
 │   ├── ui/
-│   │   ├── HUD.tscn             # Health, MP, BP bars
-│   │   ├── ActionCards.tscn     # Card selection panel
+│   │   ├── HUD.tscn             # Health, MP, score, combo, status
+│   │   ├── SpellPanel.tscn      # Bottom-left MP spell panel
 │   │   └── MainMenu.tscn        # Title screen
 │   │
 │   └── levels/
@@ -117,14 +135,14 @@ beholder-adventure/
 │   │   └── AudioManager.gd      # Sound management
 │   │
 │   ├── gameplay/
-│   │   ├── ActionCard.gd        # Action card data/resource logic
+│   │   ├── SpellBook.gd         # MP spell definitions
 │   │   ├── BallPhysics.gd       # Bounce/trajectory logic
 │   │   ├── EnemyTypes.gd        # Enemy behavior classes
 │   │   ├── ComboSystem.gd       # Multiplier tracking
 │   │   └── LevelManager.gd      # Level loading/progression
 │   │
 │   └── ui/
-│       ├── CardSelector.gd      # Action card logic
+│       ├── SpellPanel.gd        # Spell button UI logic
 │       └── TouchControls.gd     # Mobile input handling
 │
 ├── assets/                       # ⚠️ HUMAN CREATED ONLY
@@ -132,7 +150,7 @@ beholder-adventure/
 │   │   ├── enemies/             # All enemy sprites
 │   │   ├── ball/                # Ball variations
 │   │   ├── environment/         # Tiles, walls, obstacles
-│   │   └── ui/                  # Icons, buttons, cards
+│   │   └── ui/                  # Icons, buttons, HUD assets
 │   │
 │   ├── audio/
 │   │   ├── sfx/                 # Sound effects
@@ -143,7 +161,6 @@ beholder-adventure/
 ├── resources/
 │   ├── enemy_data/              # Enemy stat definitions
 │   ├── level_data/              # Level JSON configs, including level_001.json
-│   ├── card_data/               # Action card definitions
 │   └── settings/                # Game settings presets
 │
 └── exports/                     # Build configurations
@@ -286,36 +303,16 @@ final_score = base_score * combo_multiplier
 - [ ] Design score popup style
 - [ ] Balance enemy point values
 
-### 3.2 Action Card System
+### 3.2 Resource Management
 **AI Responsibilities:**
-- [x] Create `ActionCard` resource class
-- [x] Implement card selection UI
-- [x] Build BP (Battle Point) economy
-- [ ] Create card ability effects
-
-**Initial Card Roster:**
-| Card | BP Cost | Effect |
-|------|---------|--------|
-| Power Shot | 1 | +50% damage, -1 bounce |
-| Multi-Ball | 3 | Launch 3 balls at slight spread |
-| Piercing | 2 | Ball passes through first enemy |
-| Time Warp | 2 | Slow motion for 3 seconds |
-| Explosive | 3 | Ball explodes on first hit (AoE) |
+- [x] Remove the extra action-currency regeneration and UI from the current prototype
+- [x] Create HP/MP UI labels
+- [x] Implement MP spell costs, cooldowns, and unavailable states
+- [x] Add stage-gated spell availability
+- [ ] Balance MP costs, cooldowns, and spell effects
 
 **Human Responsibilities:**
-- [ ] Create ALL card artwork (icons, frames, backgrounds)
-- [ ] Design card visual effects
-- [ ] Balance card costs and effects
-
-### 3.3 Resource Management
-**AI Responsibilities:**
-- [x] Implement BP regeneration system
-- [x] Create HP/MP/BP UI bars
-- [x] Build resource cost validation
-- [ ] Handle out-of-resource states
-
-**Human Responsibilities:**
-- [ ] Create UI bar graphics (HP, MP, BP)
+- [ ] Create UI bar graphics (HP, MP, SP)
 - [ ] Design resource icons
 - [ ] Approve regeneration rates
 
@@ -402,7 +399,7 @@ const TOUCH_VISUAL_FEEDBACK: bool = true
 - [ ] Implement enemy idle animations
 - [ ] Create enemy hit/death animations
 - [ ] Add ball spin/rotation during flight
-- [ ] Animate UI elements (cards, buttons, transitions)
+- [ ] Animate UI elements (buttons, transitions)
 - [ ] Build animation state machines
 
 **Human Responsibilities:**
@@ -439,8 +436,6 @@ const TOUCH_VISUAL_FEEDBACK: bool = true
 - Enemy hit
 - Enemy death (per type)
 - Combo buildup
-- Card selection
-- Card activation
 - UI clicks
 - Victory fanfare
 - Defeat sound
@@ -577,7 +572,7 @@ const TOUCH_VISUAL_FEEDBACK: bool = true
 
 ### Godot Version
 - **Target:** Godot 4.2+ (stable)
-- **Renderer:** Compatibility (for mobile support)
+- **Renderer:** GL Compatibility (for stable local startup and mobile support)
 - **Physics:** Built-in 2D physics
 
 ### GDScript Standards
@@ -596,7 +591,6 @@ var is_mobile: bool = false
 # Signals for decoupling
 signal enemy_defeated(enemy_type: String, combo_count: int)
 signal ball_launched(ball_id: int)
-signal card_played(card_id: String)
 ```
 
 ### Mobile-Specific Considerations
@@ -672,7 +666,7 @@ AI: Adjusts implementation based on feedback
 |-------|----------|-------|
 | 1 | Week 1 | Project setup, input system |
 | 2 | Weeks 2-3 | Core gameplay prototype |
-| 3 | Weeks 4-5 | Combat, scoring, cards |
+| 3 | Weeks 4-5 | Combat and scoring |
 | 4 | Weeks 6-7 | Mobile optimization |
 | 5 | Weeks 8-9 | Visual polish, VFX |
 | 6 | Week 10 | Audio implementation |
@@ -721,7 +715,7 @@ AI: Adjusts implementation based on feedback
 1. **Immediate:** Unify obstacle collision prediction with runtime obstacle bounce behavior.
 2. **Immediate:** Add a visible player turn state and clearer fire interaction.
 3. **Immediate:** Human creates initial art style guide and first sprite batch.
-4. **Next:** Replace placeholder player, ball, enemy, tile, and card visuals with human-created assets.
+4. **Next:** Replace placeholder player, ball, enemy, tile, and HUD visuals with human-created assets.
 5. **Next:** Add screenshot/visual QA documentation for the playable prototype.
 6. **Ongoing:** Weekly art deliveries + code iterations.
 
@@ -729,5 +723,5 @@ AI: Adjusts implementation based on feedback
 
 *This plan respects the sacred boundary: Code is mine. Art is yours. Together we make magic.* 🍜🎮
 
-*Last updated: 2026-05-16*  
-*Version: 1.1*
+*Last updated: 2026-06-14*  
+*Version: 1.3*

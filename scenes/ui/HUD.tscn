@@ -1,7 +1,7 @@
 [gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scenes/ui/HUD.gd" id="1_hud"]
-[ext_resource type="PackedScene" path="res://scenes/ui/ActionCards.tscn" id="2_cards"]
+[ext_resource type="PackedScene" path="res://scenes/ui/SpellPanel.tscn" id="2_spells"]
 
 [node name="HUD" type="CanvasLayer"]
 script = ExtResource("1_hud")
@@ -31,9 +31,9 @@ text = "MP 100"
 theme_override_colors/font_color = Color(0.35, 0.72, 1, 1)
 theme_override_font_sizes/font_size = 22
 
-[node name="BPLabel" type="Label" parent="TopBar"]
+[node name="SPLabel" type="Label" parent="TopBar"]
 custom_minimum_size = Vector2(80, 32)
-text = "BP 1"
+text = "SP 1"
 theme_override_colors/font_color = Color(1, 0.86, 0.35, 1)
 theme_override_font_sizes/font_size = 22
 
@@ -57,4 +57,4 @@ text = "Drag from the ball to aim"
 theme_override_colors/font_color = Color(1, 1, 1, 0.88)
 theme_override_font_sizes/font_size = 22
 
-[node name="CardSelector" parent="." instance=ExtResource("2_cards")]
+[node name="SpellPanel" parent="." instance=ExtResource("2_spells")]

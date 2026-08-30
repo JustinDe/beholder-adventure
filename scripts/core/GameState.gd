@@ -5,6 +5,11 @@ extends Node
 # Signals
 signal score_changed(new_score: int)
 signal combo_changed(new_combo: int)
+signal sp_changed(new_sp: int)
+signal hp_changed(new_hp: int)
+signal mp_changed(new_mp: int)
+signal spell_cooldowns_changed
+signal status_effects_changed
 signal level_complete(level_id: String, stars: int)
 signal game_over
 
@@ -17,18 +22,18 @@ var current_combo: int = 0
 var current_level: String = ""
 var player_hp: int = 100
 var player_mp: int = 100
-var battle_points: int = 1
+var sp_points: int = 1
+var spell_cooldowns: Dictionary = {}
+var detrimental_effects: Array[String] = []
+var floor_invulnerable_turns: int = 0
+var ward_turns: int = 0
+var reraise_turns: int = 0
 
 # Progression tracking
 var unlocked_levels: Array[String] = []
 var level_stars: Dictionary = {}  # { level_id: star_count }
 var total_games_played: int = 0
 var total_wins: int = 0
-
-# BP regeneration
-var bp_regen_timer: float = 0.0
-const BP_REGEN_INTERVAL: float = 5.0  # Seconds per BP
-const BP_MAX: int = 10
 
 # Combo tracking
 var combo_timer: float = 0.0
@@ -42,13 +47,6 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
-	# BP regeneration
-	if battle_points < BP_MAX:
-		bp_regen_timer += delta
-		if bp_regen_timer >= BP_REGEN_INTERVAL:
-			bp_regen_timer = 0.0
-			battle_points += 1
-	
 	# Combo timer
 	if current_combo > 0:
 		combo_timer += delta
@@ -78,30 +76,39 @@ func reset_combo() -> void:
 		combo_changed.emit(current_combo)
 
 
-## Spend battle points
-func spend_bp(cost: int) -> bool:
-	if battle_points >= cost:
-		battle_points -= cost
-		return true
-	return false
+## Add shot points, which control how many balls launch per shot.
+func add_sp(amount: int) -> void:
+	sp_points = max(1, sp_points + amount)
+	sp_changed.emit(sp_points)
 
 
 ## Take damage
 func take_damage(amount: int) -> void:
+	if ward_turns > 0:
+		amount = int(ceil(float(amount) * 0.5))
 	player_hp = max(0, player_hp - amount)
+	hp_changed.emit(player_hp)
 	if player_hp <= 0:
-		game_over.emit()
+		if reraise_turns > 0:
+			reraise_turns = 0
+			player_hp = 50
+			hp_changed.emit(player_hp)
+			status_effects_changed.emit()
+		else:
+			game_over.emit()
 
 
 ## Heal player
 func heal(amount: int) -> void:
 	player_hp = min(100, player_hp + amount)
+	hp_changed.emit(player_hp)
 
 
 ## Use MP
 func spend_mp(cost: int) -> bool:
 	if player_mp >= cost:
 		player_mp -= cost
+		mp_changed.emit(player_mp)
 		return true
 	return false
 
@@ -109,6 +116,50 @@ func spend_mp(cost: int) -> bool:
 ## Regenerate MP
 func regen_mp(amount: int) -> void:
 	player_mp = min(100, player_mp + amount)
+	mp_changed.emit(player_mp)
+
+
+func get_spell_cooldown(spell_id: String) -> int:
+	return int(spell_cooldowns.get(spell_id, 0))
+
+
+func set_spell_cooldown(spell_id: String, turns: int) -> void:
+	spell_cooldowns[spell_id] = max(0, turns)
+	spell_cooldowns_changed.emit()
+
+
+func tick_turn_effects() -> void:
+	for spell_id in spell_cooldowns.keys():
+		spell_cooldowns[spell_id] = max(0, int(spell_cooldowns[spell_id]) - 1)
+	floor_invulnerable_turns = max(0, floor_invulnerable_turns - 1)
+	ward_turns = max(0, ward_turns - 1)
+	reraise_turns = max(0, reraise_turns - 1)
+	spell_cooldowns_changed.emit()
+	status_effects_changed.emit()
+
+
+func clear_detrimental_effects_except_doom() -> void:
+	var retained: Array[String] = []
+	for effect in detrimental_effects:
+		if effect.to_lower() == "doom":
+			retained.append(effect)
+	detrimental_effects = retained
+	status_effects_changed.emit()
+
+
+func grant_floor_invulnerability(turns: int) -> void:
+	floor_invulnerable_turns = max(floor_invulnerable_turns, turns)
+	status_effects_changed.emit()
+
+
+func grant_ward(turns: int) -> void:
+	ward_turns = max(ward_turns, turns)
+	status_effects_changed.emit()
+
+
+func grant_reraise(turns: int) -> void:
+	reraise_turns = max(reraise_turns, turns)
+	status_effects_changed.emit()
 
 
 ## Complete a level with star rating
@@ -202,13 +253,23 @@ func new_game() -> void:
 	current_combo = 0
 	player_hp = 100
 	player_mp = 100
-	battle_points = 1
+	sp_points = 1
+	spell_cooldowns.clear()
+	detrimental_effects.clear()
+	floor_invulnerable_turns = 0
+	ward_turns = 0
+	reraise_turns = 0
 	unlocked_levels = ["level_001"]
 	level_stars.clear()
 	total_games_played += 1
 	
 	score_changed.emit(0)
 	combo_changed.emit(0)
+	sp_changed.emit(sp_points)
+	hp_changed.emit(player_hp)
+	mp_changed.emit(player_mp)
+	spell_cooldowns_changed.emit()
+	status_effects_changed.emit()
 
 
 ## Get statistics

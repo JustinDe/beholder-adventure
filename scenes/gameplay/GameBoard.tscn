@@ -10,6 +10,8 @@ script = ExtResource("1_board")
 
 [node name="ObstacleLayer" type="Node2D" parent="."]
 
+[node name="ResourceLayer" type="Node2D" parent="."]
+
 [node name="EnemyLayer" type="Node2D" parent="."]
 
 [node name="BallLayer" type="Node2D" parent="."]

@@ -6,6 +6,8 @@ signal status_changed(message: String)
 
 const BallScene := preload("res://scenes/gameplay/Ball.tscn")
 const EnemyScene := preload("res://scenes/gameplay/Enemy.tscn")
+const SPNodeScene := preload("res://scenes/gameplay/SPNode.tscn")
+const SpellBookScript := preload("res://scripts/gameplay/SpellBook.gd")
 const BallPhysicsScript := preload("res://scripts/gameplay/BallPhysics.gd")
 const LevelManagerScript := preload("res://scripts/gameplay/LevelManager.gd")
 const ComboSystemScript := preload("res://scripts/gameplay/ComboSystem.gd")
@@ -20,7 +22,6 @@ var level_id: String = "level_001"
 var grid_size: Vector2i = Vector2i(10, 8)
 var ball_start_cell: Vector2i = Vector2i(5, 7)
 var player_row: int = 7
-var active_card = null
 var enemies: Array = []
 var active_balls: Array = []
 var obstacle_rects: Array[Rect2] = []
@@ -30,6 +31,7 @@ var level_is_cleared: bool = false
 
 @onready var grid_layer: Node2D = $GridLayer
 @onready var obstacle_layer: Node2D = $ObstacleLayer
+@onready var resource_layer: Node2D = $ResourceLayer
 @onready var enemy_layer: Node2D = $EnemyLayer
 @onready var ball_layer: Node2D = $BallLayer
 @onready var trajectory_preview: Node2D = $TrajectoryPreview
@@ -81,19 +83,43 @@ func load_level(new_level_id: String) -> void:
 	_clear_board()
 	_draw_grid()
 	_place_obstacles(data.get("obstacles", []))
+	_spawn_sp_nodes(data.get("sp_nodes", []))
 	_spawn_enemies(data.get("enemies", []))
 	_update_player_position()
 	trajectory_preview.clear_path()
 	status_changed.emit("Mouse wheel moves launcher. Aim with mouse")
 
 
-func set_active_card(card) -> void:
-	active_card = card
+func get_current_stage() -> int:
+	var parts := level_id.split("_")
+	if parts.size() >= 2:
+		return max(1, int(parts[1]))
+	return 1
 
 
-func consume_card_for_launch(card_selector) -> void:
-	if active_card != null:
-		active_card = card_selector.consume_selected_card()
+func cast_spell(spell_id: String) -> void:
+	if not _is_players_turn():
+		status_changed.emit("Wait for your turn")
+		return
+	var spell := SpellBookScript.get_spell(spell_id)
+	if spell.is_empty():
+		return
+	var current_stage := get_current_stage()
+	if current_stage < int(spell.get("min_stage", 1)) or current_stage > int(spell.get("max_stage", 99)):
+		status_changed.emit("%s is not available on this stage" % spell.get("name", spell_id))
+		return
+	if GameState.get_spell_cooldown(spell_id) > 0:
+		status_changed.emit("%s is still recasting" % spell.get("name", spell_id))
+		return
+	if spell_id == SpellBookScript.EYE_FIRE and _get_eye_fire_target() == null:
+		status_changed.emit("Eye Fire found no target")
+		return
+	if not GameState.spend_mp(int(spell.get("mp_cost", 0))):
+		status_changed.emit("Not enough MP")
+		return
+
+	_apply_spell_effect(spell_id, spell)
+	GameState.set_spell_cooldown(spell_id, int(spell.get("recast_turns", 0)))
 
 
 func get_board_bounds() -> Rect2:
@@ -118,7 +144,7 @@ func get_trajectory_distance() -> float:
 
 
 func _clear_board() -> void:
-	for layer in [grid_layer, obstacle_layer, enemy_layer, ball_layer]:
+	for layer in [grid_layer, obstacle_layer, resource_layer, enemy_layer, ball_layer]:
 		for child in layer.get_children():
 			child.queue_free()
 	enemies.clear()
@@ -167,6 +193,11 @@ func _row_center_y(row: int) -> float:
 	return board_origin.y + (float(row) + 0.5) * cell_size.y
 
 
+func _row_for_y(y_position: float) -> int:
+	var row := int(floor((y_position - board_origin.y) / cell_size.y))
+	return clampi(row, 0, grid_size.y - 1)
+
+
 func _place_obstacles(obstacles: Array) -> void:
 	for entry in obstacles:
 		var cell := _array_to_vec2i(entry)
@@ -177,6 +208,21 @@ func _place_obstacles(obstacles: Array) -> void:
 		obstacle.size = rect.size - Vector2(16, 16)
 		obstacle.color = Color(0.40, 0.34, 0.27, 1.0)
 		obstacle_layer.add_child(obstacle)
+
+
+func _spawn_sp_nodes(sp_entries: Array) -> void:
+	for entry in sp_entries:
+		var cell := Vector2i.ZERO
+		var value := 1
+		if entry is Dictionary:
+			cell = _array_to_vec2i(entry.get("cell", [0, 0]))
+			value = int(entry.get("value", 1))
+		else:
+			cell = _array_to_vec2i(entry)
+		var sp_node := SPNodeScene.instantiate()
+		sp_node.position = cell_to_world(cell)
+		sp_node.sp_value = value
+		resource_layer.add_child(sp_node)
 
 
 func _spawn_enemies(enemy_entries: Array) -> void:
@@ -192,34 +238,92 @@ func _spawn_enemies(enemy_entries: Array) -> void:
 		enemies.append(enemy)
 
 
+func _apply_spell_effect(spell_id: String, spell: Dictionary) -> void:
+	match spell_id:
+		SpellBookScript.EYE_FIRE:
+			var target = _get_eye_fire_target()
+			_damage_enemy(target, 20)
+			status_changed.emit("Eye Fire")
+		SpellBookScript.EYE_STARSTORM:
+			var hit_count := _damage_enemies_in_starstorm_area(10)
+			status_changed.emit("Eye Starstorm hit %d" % hit_count)
+		SpellBookScript.EYE_METEOR:
+			var hit_count := _damage_all_enemies(15)
+			status_changed.emit("Eye Meteor hit %d" % hit_count)
+		SpellBookScript.EYE_CURE:
+			GameState.heal(50)
+			status_changed.emit("Eye Cure")
+		SpellBookScript.EYE_ESUNA:
+			GameState.clear_detrimental_effects_except_doom()
+			status_changed.emit("Eye Esuna")
+		SpellBookScript.EYE_LEVITATION:
+			GameState.grant_floor_invulnerability(int(spell.get("effect_turns", 1)))
+			status_changed.emit("Eye Levitation")
+		SpellBookScript.EYE_WARD:
+			GameState.grant_ward(int(spell.get("effect_turns", 1)))
+			status_changed.emit("Eye Ward")
+		SpellBookScript.EYE_RERAISE:
+			GameState.grant_reraise(99)
+			status_changed.emit("Eye Reraise")
+
+
+func _get_eye_fire_target():
+	var target = null
+	var best_x := -INF
+	for enemy in enemies:
+		if not is_instance_valid(enemy):
+			continue
+		if _row_for_y(enemy.position.y) != player_row:
+			continue
+		if enemy.position.x < get_launch_position().x and enemy.position.x > best_x:
+			best_x = enemy.position.x
+			target = enemy
+	return target
+
+
+func _damage_enemies_in_starstorm_area(damage: int) -> int:
+	var center_cell := Vector2i(max(0, grid_size.x - 1 - 8), player_row)
+	var center := cell_to_world(center_cell)
+	var area := Rect2(center - cell_size * 1.5, cell_size * 3.0)
+	var hit_count := 0
+	for enemy in enemies.duplicate():
+		if is_instance_valid(enemy) and area.has_point(enemy.position):
+			_damage_enemy(enemy, damage)
+			hit_count += 1
+	return hit_count
+
+
+func _damage_all_enemies(damage: int) -> int:
+	var hit_count := 0
+	for enemy in enemies.duplicate():
+		if is_instance_valid(enemy):
+			_damage_enemy(enemy, damage)
+			hit_count += 1
+	return hit_count
+
+
+func _damage_enemy(enemy, damage: int) -> void:
+	var defeated: bool = enemy.take_damage(damage)
+	if defeated:
+		enemies.erase(enemy)
+		_check_level_clear()
+
+
 func _launch(direction: Vector2) -> void:
 	if active_balls.size() > 0 or direction.length_squared() == 0.0:
 		return
 	trajectory_preview.clear_path()
 	combo_system.begin_launch()
-	var card = active_card
-	if card != null and not GameState.spend_bp(card.bp_cost):
-		card = null
-	active_card = null
-	var ball_count: int = card.ball_count if card else 1
-	var spread: float = card.spread_degrees if card else 0.0
-	var start_angle: float = -spread * 0.5
+	var ball_count: int = max(1, GameState.sp_points)
 	for i in range(ball_count):
-		var launch_direction := direction
-		if ball_count > 1:
-			var offset: float = start_angle + (spread / float(max(1, ball_count - 1))) * float(i)
-			launch_direction = direction.rotated(deg_to_rad(offset))
-		_spawn_ball(launch_direction, card)
-	status_changed.emit("Ball launched")
+		_spawn_ball(direction)
+		if i < ball_count - 1:
+			await get_tree().create_timer(0.12).timeout
+	status_changed.emit("Launched %d ball%s" % [ball_count, "" if ball_count == 1 else "s"])
 
 
-func _spawn_ball(direction: Vector2, card) -> void:
+func _spawn_ball(direction: Vector2) -> void:
 	var ball := BallScene.instantiate()
-	if card:
-		ball.damage = max(1, int(round(float(ball.damage) * card.damage_multiplier)))
-		ball.max_bounces = max(1, ball.max_bounces + card.bounce_modifier)
-		ball.pierce_count = card.pierce_count
-		ball.explosive_radius = card.explosion_radius
 	ball.hit_enemy.connect(_on_ball_hit_enemy)
 	ball.expired.connect(_on_ball_expired)
 	ball.bounced.connect(_on_ball_bounced)
@@ -256,15 +360,45 @@ func _on_enemy_defeated(enemy) -> void:
 
 
 func _on_ball_expired(ball) -> void:
+	if not is_instance_valid(ball):
+		return
 	active_balls.erase(ball)
 	ball.queue_free()
 	if active_balls.is_empty():
-		combo_system.end_launch()
-		status_changed.emit("Ready")
+		_end_turn("Ready")
 
 
 func _on_ball_bounced(ball, _position: Vector2) -> void:
+	if _should_player_catch_ball(ball):
+		_remove_ball_from_field(ball, "Ball returned")
+		return
 	_check_obstacle_bounce(ball)
+
+
+func _remove_ball_from_field(ball, message: String) -> void:
+	if not is_instance_valid(ball):
+		return
+	ball.active = false
+	active_balls.erase(ball)
+	ball.queue_free()
+	if active_balls.is_empty():
+		_end_turn(message)
+
+
+func _end_turn(message: String) -> void:
+	combo_system.end_launch()
+	GameState.tick_turn_effects()
+	status_changed.emit(message)
+
+
+func _should_player_catch_ball(ball) -> bool:
+	if not is_instance_valid(ball) or ball.bounce_count <= 0:
+		return false
+	var bounds := get_board_bounds()
+	var right_wall_x := bounds.end.x - BallPhysicsScript.BALL_RADIUS
+	if absf(ball.position.x - right_wall_x) > 2.0:
+		return false
+	return _row_for_y(ball.position.y) == player_row
 
 
 func _check_obstacle_bounce(ball) -> void:

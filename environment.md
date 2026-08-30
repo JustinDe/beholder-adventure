@@ -16,3 +16,13 @@ Both Windows and WSL have powershell installed so this is our prefered scripting
 * Godot game engine wsl path: "/mnt/c/Users/Justin/Documents/GDOT/Godot_v4.6.2-stable_win64.exe"
 * Godot game engine Windows path: "C:\Users\Justin\Documents\GDOT\Godot_v4.6.2-stable_win64.exe"
 * Godot game engine Windows Console path: "C:\Users\Justin\Documents\GDOT\Godot_v4.6.2-stable_win64_console.exe"
+
+## Current Run/Validation Notes
+
+The project is configured for Godot's GL Compatibility renderer. Use normal windowed startup for validation on this machine:
+
+```powershell
+& 'C:\Users\Justin\Documents\GDOT\Godot_v4.6.2-stable_win64_console.exe' --path 'D:\iCloud\iCloudDrive\beholder-adventure' --quit-after 120
+```
+
+As of 2026-06-14, `--headless` crashes before project startup even when no project path is supplied, so it should not be treated as a project failure until the local Godot runtime is replaced or repaired.

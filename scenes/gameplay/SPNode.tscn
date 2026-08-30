@@ -1,0 +1,25 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/gameplay/SPNode.gd" id="1_sp"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_sp"]
+radius = 24.0
+
+[node name="SPNode" type="Area2D"]
+script = ExtResource("1_sp")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_sp")
+
+[node name="Body" type="Polygon2D" parent="."]
+color = Color(1, 0.76, 0.22, 1)
+
+[node name="Label" type="Label" parent="."]
+offset_left = -20.0
+offset_top = -12.0
+offset_right = 20.0
+offset_bottom = 12.0
+horizontal_alignment = 1
+vertical_alignment = 1
+theme_override_colors/font_color = Color(0.08, 0.07, 0.04, 1)
+theme_override_font_sizes/font_size = 14

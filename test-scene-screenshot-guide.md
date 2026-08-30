@@ -9,6 +9,8 @@
 
 **Location:** `C:\Users\Justin\Documents\GodotProjects\beholder-adventure\scenes\main\TestScene.tscn`
 
+Current project path: `D:\iCloud\iCloudDrive\beholder-adventure`
+
 **Status:** ✅ Complete and ready to run!
 
 ---
@@ -20,7 +22,7 @@
 1. **Open Godot Engine** (4.2+)
 2. **Import the project** (if not already imported):
    - Click "Import"
-   - Navigate to: `C:\Users\Justin\Documents\GodotProjects\beholder-adventure\`
+   - Navigate to: `D:\iCloud\iCloudDrive\beholder-adventure\`
    - Select `project.godot`
 3. **Open TestScene.tscn**:
    - In FileSystem dock, navigate to `scenes/main/`
@@ -41,14 +43,14 @@
 If Godot is in your PATH:
 
 ```bash
-# Run headless and quit after 2 seconds
-godot --headless --quit-after 120 --path "C:\Users\Justin\Documents\GodotProjects\beholder-adventure" res://scenes/main/TestScene.tscn
+# Run in normal windowed mode and quit after 120 frames
+godot --quit-after 120 --path "D:\iCloud\iCloudDrive\beholder-adventure" --scene res://scenes/main/TestScene.tscn
 
 # Take screenshot manually while running
-godot --path "C:\Users\Justin\Documents\GodotProjects\beholder-adventure" res://scenes/main/TestScene.tscn
+godot --path "D:\iCloud\iCloudDrive\beholder-adventure" --scene res://scenes/main/TestScene.tscn
 ```
 
-**Note:** Godot's CLI screenshot functionality is limited. Manual screenshot is more reliable.
+**Note:** Godot's CLI screenshot functionality is limited. Manual screenshot is more reliable. As of 2026-06-14, the local Godot runtime crashes in `--headless` before project startup, so use normal windowed mode for local screenshot checks.
 
 ---
 
@@ -86,7 +88,7 @@ For documentation purposes, capture:
 ## 🔧 Troubleshooting
 
 ### "No main scene configured"
-- ✅ Fixed! Main scene is now set to TestScene.tscn
+- Fixed. The main scene is currently `scenes/main/Main.tscn`; `TestScene.tscn` can still be run explicitly with `--scene`.
 
 ### "Godot not found"
 - Download Godot 4.2+ from: https://godotengine.org/download

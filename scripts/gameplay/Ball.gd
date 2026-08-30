@@ -83,6 +83,10 @@ func _check_wall_bounce() -> void:
 
 
 func _on_area_entered(area: Area2D) -> void:
+	if area.has_method("collect_sp"):
+		area.collect_sp()
+		return
+
 	var enemy := area
 	if not enemy.has_method("take_damage") or enemy in hit_enemies:
 		return

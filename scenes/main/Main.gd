@@ -2,12 +2,12 @@ extends Node2D
 
 @onready var game_board: Node = $GameBoard
 @onready var hud: CanvasLayer = $HUD
-@onready var card_selector: Control = $HUD/CardSelector
 
 
 func _ready() -> void:
 	GameState.new_game()
-	card_selector.card_selected.connect(game_board.set_active_card)
+	hud.set_stage(game_board.get_current_stage())
+	hud.spell_requested.connect(game_board.cast_spell)
 	game_board.status_changed.connect(hud.show_message)
 	game_board.level_cleared.connect(_on_level_cleared)
 	InputHandler.pause_toggled.connect(_toggle_pause)

@@ -77,16 +77,24 @@ Based on visual analysis:
 
 ## 📊 UI/HUD Elements
 
-### Action Cards System
-Located bottom-left, appears to show:
-- **Card icons** (different abilities/powerups?)
-- **Numbers:** 30, 40, 10, 30, 50 (cost? damage? BP cost?)
-- **Selection:** Active card highlighted
-
 ### Status Bars
 - **HP (Health Points):** 100/100 - Player health
 - **MP (Magic Points):** 100/100 - Resource for abilities
-- **BP (Battle Points?):** 1 - Action currency per turn
+- **SP (Shot Points):** Starts at 1; collectible board nodes increase the number of balls launched per shot.
+
+### Spell Panel
+Located bottom-left. Spells consume MP and show cooldown/availability state.
+
+| Spell | MP | Recast | Availability | Effect |
+|-------|----|--------|--------------|--------|
+| Eye Fire | 30 | 3 turns | Stage 1+ | Deals 20 damage to a target in front of you. |
+| Eye Starstorm | 40 | 4 turns | Stage 1+ | Deals 10 damage to enemies in an area centered 8 squares in front of you. |
+| Eye Meteor | 80 | 10 turns | Stage 3 only | Deals 15 damage to all enemies. |
+| Eye Cure | 10 | 1 turn | Stage 1+ | Restores 50 HP. |
+| Eye Esuna | 20 | 3 turns | Stages 2-3 | Removes all detrimental effects except Doom. |
+| Eye Levitation | 20 | 3 turns | Stages 2-3 | Grants 1 turn of invulnerability to floor effects. |
+| Eye Ward | 30 | 3 turns | Stage 1+ | Erects a 1-turn protective barrier. |
+| Eye Reraise | 50 | 99 turns | Stage 1+ | Grants automatic revival upon KO for the duration of the effect. |
 
 ### Top Bar
 - **Counter:** "31" (turns? score? enemies remaining?)
@@ -118,19 +126,10 @@ Translates roughly to:
 
 ## 🔮 Power-Ups & Abilities
 
-### Potential Action Cards
-*(Based on UI card system)*
-
-1. **Multi-Ball:** Launch multiple balls at once
-2. **Explosive:** Ball explodes on impact
-3. **Piercing:** Passes through first enemy
-4. **Homing:** Slight tracking adjustment
-5. **Time Slow:** Slow motion for precision
-
 ### Resource Management
-- **BP System:** Limited actions per turn
 - **MP Abilities:** Special shots cost magic
-- **Card Cooldowns:** Limited use abilities
+- **SP Nodes:** Board collectibles that increase future shot count.
+- **Spell Recasts:** Spell cooldowns tick down when ball-launch turns resolve.
 
 ---
 
@@ -190,8 +189,7 @@ Each platform needs optimized input:
 
 ### Phase 2: Gameplay Loop
 - [ ] Enemy variety (3-4 types)
-- [ ] Action card system
-- [ ] Resource management (BP/MP)
+- [ ] Resource management (MP spells and SP nodes)
 - [ ] 5-10 test levels
 
 ### Phase 3: Polish
