@@ -49,11 +49,10 @@ func _initialize_sfx_pool() -> void:
 
 
 func _load_default_volumes() -> void:
-	# Load from settings or use defaults
-	master_volume = _get_setting("audio/master_volume", 0.0)
-	music_volume = _get_setting("audio/music_volume", 0.8)
-	sfx_volume = _get_setting("audio/sfx_volume", 0.85)
-	ui_volume = _get_setting("audio/ui_volume", 0.8)
+	master_volume = 1.0
+	music_volume = GameState.get_audio_setting("music", 0.8)
+	sfx_volume = GameState.get_audio_setting("sfx", 0.85)
+	ui_volume = GameState.get_audio_setting("ui", 0.8)
 	
 	_apply_volumes()
 
@@ -211,7 +210,7 @@ func set_master_volume(linear_value: float) -> void:
 ## Set music volume (linear 0.0-1.0)
 func set_music_volume(linear_value: float) -> void:
 	music_volume = clamp(linear_value, 0.0, 1.0)
-	ProjectSettings.set_setting("audio/music_volume", music_volume)
+	GameState.set_audio_setting("music", music_volume)
 	_apply_volume(MUSIC_BUS, music_volume)
 	volume_changed.emit(MUSIC_BUS, music_volume)
 
@@ -219,7 +218,7 @@ func set_music_volume(linear_value: float) -> void:
 ## Set SFX volume (linear 0.0-1.0)
 func set_sfx_volume(linear_value: float) -> void:
 	sfx_volume = clamp(linear_value, 0.0, 1.0)
-	ProjectSettings.set_setting("audio/sfx_volume", sfx_volume)
+	GameState.set_audio_setting("sfx", sfx_volume)
 	_apply_volume(SFX_BUS, sfx_volume)
 	volume_changed.emit(SFX_BUS, sfx_volume)
 
@@ -227,7 +226,7 @@ func set_sfx_volume(linear_value: float) -> void:
 ## Set UI volume (linear 0.0-1.0)
 func set_ui_volume(linear_value: float) -> void:
 	ui_volume = clamp(linear_value, 0.0, 1.0)
-	ProjectSettings.set_setting("audio/ui_volume", ui_volume)
+	GameState.set_audio_setting("ui", ui_volume)
 	_apply_volume(UI_BUS, ui_volume)
 	volume_changed.emit(UI_BUS, ui_volume)
 
@@ -283,7 +282,7 @@ func get_volume_linear(bus_name: String) -> float:
 
 ## Save audio settings
 func save_settings() -> void:
-	ProjectSettings.save()
+	GameState.save_game()
 
 
 ## Get music state for UI
